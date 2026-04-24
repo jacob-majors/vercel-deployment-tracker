@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Deplog — Deployments in your menu bar</title>
+  <meta name="description" content="A free, open-source macOS menu bar app that monitors Vercel deployments and GitHub Actions workflow runs." />
+  <meta property="og:title" content="Deplog — Deployments in your menu bar" />
+  <meta property="og:description" content="A free, open-source macOS menu bar app that monitors Vercel deployments and GitHub Actions workflow runs." />
+  <meta property="og:type" content="website" />
+  <style>
+    :root {
+      --bg: #080808;
+      --surface: #111111;
+      --surface-2: #181818;
+      --border: rgba(255, 255, 255, 0.07);
+      --text: #e4e4e4;
+      --muted: #666666;
+      --accent: #ffffff;
+      --green: #3dba74;
+      --amber: #e8a040;
+      --radius: 12px;
+      --font: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --mono: "SF Mono", "Fira Code", "Cascadia Code", "JetBrains Mono", monospace;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    html {
+      font-size: 16px;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    body {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--text);
+      line-height: 1.6;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    /* ── Layout ── */
+    .container {
+      max-width: 1080px;
+      margin: 0 auto;
+      padding: 0 24px;
+    }
+
+    /* ── Nav ── */
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      border-bottom: 1px solid var(--border);
+      background: rgba(8, 8, 8, 0.85);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      padding: 14px 0;
+    }
+
+    .nav-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .nav-logo {
+      font-size: 15px;
+      font-weight: 600;
+      letter-spacing: -0.02em;
+      color: var(--accent);
+    }
+
+    .nav-github {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--text);
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 7px;
+      padding: 6px 12px;
+      transition: border-color 0.15s, background 0.15s;
+    }
+
+    .nav-github:hover {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(255, 255, 255, 0.14);
+    }
+
+    /* ── Hero ── */
+    .hero {
+      padding: 96px 0 72px;
+      text-align: center;
+      position: relative;
+    }
+
+    .hero::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: radial-gradient(ellipse 60% 40% at 50% 0%, rgba(255, 255, 255, 0.04) 0%, transparent 70%);
+      pointer-events: none;
+    }
+
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--muted);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 100px;
+      padding: 5px 13px;
+      margin-bottom: 32px;
+    }
+
+    .badge-dot {
+      width: 6px;
+      height: 6px;
+      background: var(--green);
+      border-radius: 50%;
+      box-shadow: 0 0 6px rgba(61, 186, 116, 0.5);
+    }
+
+    .hero h1 {
+      font-size: clamp(38px, 6vw, 62px);
+      font-weight: 600;
+      letter-spacing: -0.035em;
+      line-height: 1.08;
+      color: var(--accent);
+      margin-bottom: 22px;
+      max-width: 700px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .hero p {
+      font-size: 17px;
+      color: var(--muted);
+      max-width: 480px;
+      margin: 0 auto 40px;
+      line-height: 1.7;
+    }
+
+    .hero-ctas {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 14px;
+      font-weight: 500;
+      background: var(--accent);
+      color: #000;
+      border: 1px solid transparent;
+      border-radius: 8px;
+      padding: 10px 18px;
+      transition: opacity 0.15s;
+    }
+
+    .btn-primary:hover {
+      opacity: 0.88;
+    }
+
+    .btn-secondary {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text);
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 10px 18px;
+      transition: border-color 0.15s, background 0.15s;
+    }
+
+    .btn-secondary:hover {
+      background: rgba(255, 255, 255, 0.04);
+      border-color: rgba(255, 255, 255, 0.13);
+    }
+
+    /* ── App mockup ── */
+    .mockup-section {
+      padding: 48px 0 72px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .mockup-label {
+      font-size: 11px;
+      font-weight: 500;
+      letter-spacing: 0.07em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 24px;
+    }
+
+    .app-window {
+      width: 320px;
+      background: #141414;
+      border-radius: 16px;
+      border: 1px solid rgba(255, 255, 255, 0.09);
+      box-shadow:
+        0 0 0 1px rgba(255, 255, 255, 0.03),
+        0 32px 64px rgba(0, 0, 0, 0.7),
+        0 8px 24px rgba(0, 0, 0, 0.5);
+      overflow: hidden;
+    }
+
+    .app-topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 12px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .app-tabs {
+      display: flex;
+      gap: 2px;
+      background: rgba(255, 255, 255, 0.05);
+      border-radius: 6px;
+      padding: 2px;
+    }
+
+    .app-tab {
+      font-size: 11px;
+      font-weight: 500;
+      padding: 3px 10px;
+      border-radius: 4px;
+      color: #555;
+    }
+
+    .app-tab.active {
+      background: rgba(255, 255, 255, 0.09);
+      color: #e4e4e4;
+    }
+
+    .app-quit {
+      font-size: 11px;
+      color: #444;
+    }
+
+    .app-header {
+      padding: 14px 14px 6px;
+    }
+
+    .app-eyebrow {
+      font-size: 10px;
+      font-weight: 500;
+      color: #555;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      margin-bottom: 2px;
+    }
+
+    .app-title {
+      font-size: 18px;
+      font-weight: 600;
+      color: #e4e4e4;
+      letter-spacing: -0.025em;
+    }
+
+    .app-mode-bar {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      padding: 5px 14px 12px;
+    }
+
+    .mode-pill {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 2px 6px;
+      border-radius: 3px;
+      background: rgba(61, 186, 116, 0.18);
+      color: #3dba74;
+    }
+
+    .mode-text {
+      font-size: 10px;
+      color: #555;
+    }
+
+    .app-list {
+      padding: 0 8px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 3px;
+    }
+
+    .app-card {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      padding: 9px 10px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.025);
+      border: 1px solid rgba(255, 255, 255, 0.04);
+    }
+
+    .app-card:first-child {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(255, 255, 255, 0.08);
+    }
+
+    .s-dot {
+      width: 7px;
+      height: 7px;
+      border-radius: 50%;
+      margin-top: 4px;
+      flex-shrink: 0;
+    }
+
+    .s-green {
+      background: #3dba74;
+      box-shadow: 0 0 6px rgba(61, 186, 116, 0.5);
+    }
+
+    .s-amber {
+      background: #e8a040;
+      box-shadow: 0 0 6px rgba(232, 160, 64, 0.5);
+      animation: blink 1.6s ease-in-out infinite;
+    }
+
+    .s-muted {
+      background: #333;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.4; }
+    }
+
+    .card-body { flex: 1; min-width: 0; }
+
+    .card-title-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 6px;
+      margin-bottom: 3px;
+    }
+
+    .card-commit {
+      font-size: 11.5px;
+      font-weight: 500;
+      color: #d0d0d0;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .card-branch {
+      font-size: 9px;
+      color: #666;
+      background: rgba(255, 255, 255, 0.06);
+      border-radius: 3px;
+      padding: 1px 5px;
+      flex-shrink: 0;
+    }
+
+    .card-meta {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      color: #555;
+    }
+
+    /* ── Features ── */
+    .features {
+      padding: 72px 0;
+      border-top: 1px solid var(--border);
+    }
+
+    .section-eyebrow {
+      font-size: 11px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted);
+      margin-bottom: 14px;
+    }
+
+    .section-heading {
+      font-size: clamp(24px, 3vw, 34px);
+      font-weight: 600;
+      letter-spacing: -0.03em;
+      color: var(--accent);
+      line-height: 1.2;
+      margin-bottom: 52px;
+    }
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .feature-card {
+      padding: 28px 26px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+    }
+
+    .feature-card:last-child {
+      border-right: none;
+    }
+
+    .feature-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 8px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 15px;
+      margin-bottom: 18px;
+    }
+
+    .feature-card h3 {
+      font-size: 14px;
+      font-weight: 600;
+      color: var(--accent);
+      margin-bottom: 8px;
+      letter-spacing: -0.01em;
+    }
+
+    .feature-card p {
+      font-size: 13px;
+      color: var(--muted);
+      line-height: 1.65;
+    }
+
+    code {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: #aaa;
+      background: rgba(255, 255, 255, 0.07);
+      padding: 1px 5px;
+      border-radius: 3px;
+    }
+
+    /* ── Setup ── */
+    .setup {
+      padding: 72px 0;
+      border-top: 1px solid var(--border);
+    }
+
+    .setup-inner {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 72px;
+      align-items: start;
+    }
+
+    .setup-copy p {
+      font-size: 15px;
+      color: var(--muted);
+      margin-top: 16px;
+      line-height: 1.75;
+    }
+
+    .env-list {
+      margin-top: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .env-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 12.5px;
+    }
+
+    .env-key {
+      font-family: var(--mono);
+      font-size: 11.5px;
+      color: #ccc;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 2px 8px;
+    }
+
+    .env-desc {
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .code-block {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .code-block-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .tl {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .tl-r { background: #ff5f57; }
+    .tl-y { background: #ffbd2e; }
+    .tl-g { background: #28c840; }
+
+    pre {
+      padding: 20px;
+      font-family: var(--mono);
+      font-size: 12.5px;
+      line-height: 1.85;
+      color: var(--text);
+      overflow-x: auto;
+      tab-size: 2;
+    }
+
+    .c { color: #555; }
+
+    /* ── Open source callout ── */
+    .oss-callout {
+      padding: 72px 0;
+      border-top: 1px solid var(--border);
+    }
+
+    .oss-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 32px;
+      padding: 40px 44px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+    }
+
+    .oss-copy h2 {
+      font-size: 22px;
+      font-weight: 600;
+      letter-spacing: -0.025em;
+      color: var(--accent);
+      margin-bottom: 10px;
+    }
+
+    .oss-copy p {
+      font-size: 14px;
+      color: var(--muted);
+      max-width: 420px;
+      line-height: 1.7;
+    }
+
+    /* ── Footer ── */
+    footer {
+      border-top: 1px solid var(--border);
+      padding: 32px 0;
+    }
+
+    .footer-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+
+    .footer-left {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+
+    .footer-wordmark {
+      font-size: 14px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.25);
+    }
+
+    .footer-sep {
+      color: var(--border);
+    }
+
+    .footer-meta {
+      font-size: 13px;
+      color: var(--muted);
+    }
+
+    .footer-links {
+      display: flex;
+      gap: 20px;
+    }
+
+    .footer-link {
+      font-size: 13px;
+      color: var(--muted);
+      transition: color 0.15s;
+    }
+
+    .footer-link:hover {
+      color: var(--text);
+    }
+
+    /* ── Responsive ── */
+    @media (max-width: 900px) {
+      .feature-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .feature-card:nth-child(2) {
+        border-right: none;
+      }
+
+      .feature-card:nth-child(1),
+      .feature-card:nth-child(2) {
+        border-bottom: 1px solid var(--border);
+      }
+    }
+
+    @media (max-width: 640px) {
+      .hero { padding: 64px 0 52px; }
+      .setup-inner { grid-template-columns: 1fr; gap: 36px; }
+      .feature-grid { grid-template-columns: 1fr; }
+      .feature-card { border-right: none; border-bottom: 1px solid var(--border); }
+      .feature-card:last-child { border-bottom: none; }
+      .oss-inner { flex-direction: column; align-items: flex-start; padding: 28px 24px; }
+      .footer-inner { flex-direction: column; align-items: flex-start; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Nav -->
+<nav>
+  <div class="container">
+    <div class="nav-inner">
+      <span class="nav-logo">Deplog</span>
+      <a href="https://github.com/jacob-majors/vercel-deployment-tracker" target="_blank" rel="noopener noreferrer" class="nav-github">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/>
+        </svg>
+        GitHub
+      </a>
+    </div>
+  </div>
+</nav>
+
+<main>
+
+  <!-- Hero -->
+  <section class="hero">
+    <div class="container">
+      <div class="badge">
+        <span class="badge-dot"></span>
+        Open Source &middot; MIT License
+      </div>
+      <h1>Your deployments,<br>always one click away.</h1>
+      <p>Deplog is a free, open-source macOS menu bar app that monitors Vercel deployments and GitHub Actions workflow runs — without switching tabs.</p>
+      <div class="hero-ctas">
+        <a href="https://github.com/jacob-majors/vercel-deployment-tracker" target="_blank" rel="noopener noreferrer" class="btn-primary">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/>
+          </svg>
+          View on GitHub
+        </a>
+        <a href="#quick-start" class="btn-secondary">
+          Quick start &darr;
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- App mockup -->
+  <div class="mockup-section">
+    <p class="mockup-label">Live preview</p>
+    <div class="app-window" role="img" aria-label="Deplog app interface showing deployment list">
+      <div class="app-topbar">
+        <div class="app-tabs">
+          <div class="app-tab active">Vercel</div>
+          <div class="app-tab">GitHub</div>
+        </div>
+        <span class="app-quit">&#9204;</span>
+      </div>
+      <div class="app-header">
+        <p class="app-eyebrow">Recent activity</p>
+        <p class="app-title">Deployments</p>
+      </div>
+      <div class="app-mode-bar">
+        <span class="mode-pill">Live</span>
+        <span class="mode-text">Connected to Vercel API</span>
+      </div>
+      <div class="app-list">
+        <div class="app-card">
+          <div class="s-dot s-green"></div>
+          <div class="card-body">
+            <div class="card-title-row">
+              <span class="card-commit">feat: add dark mode toggle</span>
+              <span class="card-branch">main</span>
+            </div>
+            <div class="card-meta">
+              <span>my-app</span>
+              <span>2 minutes ago</span>
+            </div>
+          </div>
+        </div>
+        <div class="app-card">
+          <div class="s-dot s-amber"></div>
+          <div class="card-body">
+            <div class="card-title-row">
+              <span class="card-commit">fix: update API endpoint</span>
+              <span class="card-branch">staging</span>
+            </div>
+            <div class="card-meta">
+              <span>backend-api</span>
+              <span>Building&hellip;</span>
+            </div>
+          </div>
+        </div>
+        <div class="app-card">
+          <div class="s-dot s-muted"></div>
+          <div class="card-body">
+            <div class="card-title-row">
+              <span class="card-commit">chore: update dependencies</span>
+              <span class="card-branch">dev</span>
+            </div>
+            <div class="card-meta">
+              <span>docs-site</span>
+              <span>1 hour ago</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Features -->
+  <section class="features">
+    <div class="container">
+      <p class="section-eyebrow">What it does</p>
+      <h2 class="section-heading">Everything in one place.</h2>
+      <div class="feature-grid">
+        <div class="feature-card">
+          <div class="feature-icon">&#9650;</div>
+          <h3>Vercel Deployments</h3>
+          <p>Track production and preview deployments in real time. See status, commit messages, and jump straight to the preview URL.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="#e4e4e4" aria-hidden="true">
+              <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/>
+            </svg>
+          </div>
+          <h3>GitHub Actions</h3>
+          <p>Monitor CI workflow runs across all your repos. Spot failures immediately and open the run directly from the panel.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">&#9711;</div>
+          <h3>Always accessible</h3>
+          <p>Lives quietly in your menu bar. Available as an Electron app and a native SwiftUI build — no Dock icon, no clutter.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">&#8997;</div>
+          <h3>Works out of the box</h3>
+          <p>Starts in mock mode with polished sample data. Add tokens to <code>.env</code> whenever you are ready to go live.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Setup -->
+  <section class="setup" id="quick-start">
+    <div class="container">
+      <div class="setup-inner">
+        <div class="setup-copy">
+          <p class="section-eyebrow">Quick start</p>
+          <h2 class="section-heading">Up and running<br>in two minutes.</h2>
+          <p>Clone the repo, drop in your API tokens, and run the dev command. Deplog starts in mock mode with no tokens required.</p>
+          <div class="env-list">
+            <div class="env-row">
+              <span class="env-key">VERCEL_TOKEN</span>
+              <span class="env-desc">Vercel access token</span>
+            </div>
+            <div class="env-row">
+              <span class="env-key">GITHUB_TOKEN</span>
+              <span class="env-desc">GitHub personal access token</span>
+            </div>
+            <div class="env-row">
+              <span class="env-key">VERCEL_TEAM_ID</span>
+              <span class="env-desc">Optional — for team projects</span>
+            </div>
+            <div class="env-row">
+              <span class="env-key">GITHUB_REPOS</span>
+              <span class="env-desc">Optional — defaults to all repos</span>
+            </div>
+          </div>
+        </div>
+        <div>
+          <div class="code-block">
+            <div class="code-block-bar">
+              <div class="tl tl-r"></div>
+              <div class="tl tl-y"></div>
+              <div class="tl tl-g"></div>
+            </div>
+            <pre><span class="c"># Clone the repo</span>
+$ git clone https://github.com/jacob-majors/vercel-deployment-tracker
+$ cd vercel-deployment-tracker
+
+<span class="c"># Add your tokens</span>
+$ cp .env.example .env
+<span class="c"># Edit .env with VERCEL_TOKEN and GITHUB_TOKEN</span>
+
+<span class="c"># Install and run</span>
+$ npm install
+$ npm run dev</pre>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- OSS callout -->
+  <section class="oss-callout">
+    <div class="container">
+      <div class="oss-inner">
+        <div class="oss-copy">
+          <h2>Free and open source.</h2>
+          <p>Deplog is MIT-licensed and lives on GitHub. Read the code, report issues, or open a pull request — contributions are welcome.</p>
+        </div>
+        <a href="https://github.com/jacob-majors/vercel-deployment-tracker" target="_blank" rel="noopener noreferrer" class="btn-primary" style="white-space:nowrap;">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+            <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/>
+          </svg>
+          Star on GitHub
+        </a>
+      </div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <div class="container">
+    <div class="footer-inner">
+      <div class="footer-left">
+        <span class="footer-wordmark">Deplog</span>
+        <span class="footer-sep">&middot;</span>
+        <span class="footer-meta">MIT License &middot; Made by Jacob Majors</span>
+      </div>
+      <div class="footer-links">
+        <a href="https://github.com/jacob-majors/vercel-deployment-tracker" target="_blank" rel="noopener noreferrer" class="footer-link">GitHub</a>
+        <a href="https://github.com/jacob-majors/vercel-deployment-tracker/issues" target="_blank" rel="noopener noreferrer" class="footer-link">Issues</a>
+        <a href="https://github.com/jacob-majors/vercel-deployment-tracker/blob/main/LICENSE" target="_blank" rel="noopener noreferrer" class="footer-link">License</a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
